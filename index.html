@@ -1,1 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SatConvert — Instant Fiat to Sats</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;800;900&family=Titillium+Web:wght@200;300;400;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #080808;
+  --s1:      #0f0f0f;
+  --s2:      #161616;
+  --s3:      #1e1e1e;
+  --orange:  #f7931a;
+  --og:      rgba(247,147,26,0.15);
+  --og2:     rgba(247,147,26,0.07);
+  --og3:     rgba(247,147,26,0.03);
+  --rule:    rgba(247,147,26,0.12);
+  --white:   #f5f0e8;
+  --w2:      #a09890;
+  --w3:      #484440;
+  --green:   #2dff8a;
+  --radius:  2px;
+}
 
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+html { scroll-behavior:smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--white);
+  font-family: 'Titillium Web', sans-serif;
+  font-weight: 300;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ambient glow */
+body::before {
+  content:'';
+  position:fixed;
+  top:-20%; left:50%;
+  transform:translateX(-50%);
+  width:1000px; height:600px;
+  background:radial-gradient(ellipse, rgba(247,147,26,0.055) 0%, transparent 68%);
+  pointer-events:none; z-index:0;
+}
+
+/* grid */
+body::after {
+  content:'';
+  position:fixed; inset:0;
+  background-image:
+    linear-gradient(rgba(247,147,26,0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(247,147,26,0.022) 1px, transparent 1px);
+  background-size:48px 48px;
+  pointer-events:none; z-index:0;
+}
+
+.wrap {
+  position:relative; z-index:1;
+  max-width:640px;
+  margin:0 auto;
+  padding:0 20px 80px;
+}
+
+/* ── HEADER ── */
+.header { padding:52px 0 36px; }
+
+.eyebrow {
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px; letter-spacing:4px;
+  color:var(--orange); text-transform:uppercase;
+  margin-bottom:14px;
+  display:flex; align-items:center; gap:10px;
+  opacity:0; animation:fadeUp 0.5s 0.1s forwards;
+}
+.eyebrow::before { content:''; width:24px; height:1px; background:var(--orange); }
+
+.title {
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:900;
+  font-size:clamp(72px,16vw,120px);
+  line-height:0.85;
+  letter-spacing:-2px;
+  text-transform:uppercase;
+  overflow:hidden;
+}
+
+.title-sat,
+.title-convert {
+  display:block;
+  overflow:hidden;
+}
+
+.title-sat .t-inner { display:block; }
+.title-convert .t-inner { display:block; }
+
+@keyframes slideUp {
+  from { transform:translateY(110%); opacity:0; }
+  to   { transform:translateY(0);    opacity:1; }
+}
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(8px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+.header-rule {
+  margin-top:24px; height:1px;
+  background:linear-gradient(90deg, var(--orange), rgba(247,147,26,0.1), transparent);
+  animation:fadeUp 0.5s 0.6s both;
+}
+
+.header-sub {
+  margin-top:14px;
+  font-size:12px; font-weight:300;
+  letter-spacing:3px; color:var(--w2);
+  text-transform:uppercase;
+  animation:fadeUp 0.5s 0.55s both;
+}
+
+/* ── TICKER BAR ── */
+.ticker-bar {
+  display:flex; align-items:center; gap:8px;
+  margin-top:20px; padding:8px 16px;
+  background:var(--s1);
+  border:1px solid var(--rule);
+  border-radius:var(--radius);
+  animation:fadeUp 0.5s 0.7s both;
+  flex-wrap:wrap; gap:10px;
+}
+
+.t-dot {
+  width:5px; height:5px; border-radius:50%;
+  background:var(--orange);
+  animation:blink 1.4s ease-in-out infinite;
+  flex-shrink:0;
+}
+@keyframes blink {
+  0%,100%{opacity:1;box-shadow:0 0 6px var(--orange);}
+  50%{opacity:.2;box-shadow:none;}
+}
+
+.t-pair {
+  display:flex; align-items:center; gap:6px;
+  border-right:1px solid var(--rule);
+  padding-right:10px;
+}
+.t-pair:last-of-type { border-right:none; padding-right:0; }
+
+.t-label {
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px; letter-spacing:2px;
+  color:var(--w3); text-transform:uppercase;
+}
+.t-val {
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px; font-weight:500;
+  color:var(--orange);
+}
+.t-src {
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px; color:var(--w3);
+  margin-left:auto;
+}
+
+/* ── MAIN CONVERTER ── */
+.converter {
+  background:var(--s1);
+  border:1px solid var(--rule);
+  border-radius:var(--radius);
+  padding:32px 28px;
+  margin-top:16px;
+  position:relative; overflow:hidden;
+  animation:fadeUp 0.5s 0.75s both;
+}
+.converter::before {
+  content:'';
+  position:absolute; top:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg, var(--orange), rgba(247,147,26,0.1), transparent);
+}
+.converter::after {
+  content:'';
+  position:absolute; inset:0;
+  background:radial-gradient(ellipse at top left, var(--og3), transparent 55%);
+  pointer-events:none;
+}
+
+.card-label {
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px; letter-spacing:4px;
+  color:var(--orange); text-transform:uppercase;
+  margin-bottom:24px;
+}
+
+/* currency selector */
+.currency-tabs {
+  display:flex; gap:0;
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:var(--radius);
+  overflow:visible;
+  margin-bottom:36px;
+  flex-wrap:wrap;
+}
+
+.cur-tab {
+  flex:1;
+  background:var(--s2);
+  border:none;
+  border-right:1px solid rgba(255,255,255,0.06);
+  border-top:1px solid rgba(255,255,255,0.06);
+  border-bottom:1px solid rgba(255,255,255,0.06);
+  border-left:none;
+  color:var(--w3);
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:14px; font-weight:700;
+  letter-spacing:1px; padding:11px 4px;
+  cursor:pointer; text-transform:uppercase;
+  transition:all .15s;
+  touch-action:manipulation;
+  position:relative;
+  overflow:visible;
+}
+.cur-tab:first-child {
+  border-left:1px solid rgba(255,255,255,0.06);
+  border-radius:var(--radius) 0 0 var(--radius);
+}
+.cur-tab:last-child {
+  border-right:1px solid rgba(255,255,255,0.06);
+  border-radius:0 var(--radius) var(--radius) 0;
+}
+.cur-tab.active {
+  background:var(--orange);
+  color:#000;
+}
+.cur-tab:hover:not(.active) {
+  color:var(--orange);
+  background:var(--og3);
+}
+
+/* Tooltip on hover - handled by JS, appended to body */
+.cur-tooltip {
+  position: fixed;
+  background: var(--s3);
+  border: 1px solid var(--orange);
+  color: var(--white);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; font-weight: 400;
+  letter-spacing: 2px; text-transform: uppercase;
+  padding: 5px 12px;
+  white-space: nowrap;
+  border-radius: var(--radius);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .15s;
+  z-index: 9999;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+
+/* ── TITLE LETTER ANIMATIONS ── */
+.ltr {
+  display:inline-block;
+  opacity:0;
+  animation:
+    ltrIn 0.6s cubic-bezier(.22,1,.36,1) forwards,
+    ltrFloat 4s ease-in-out infinite;
+  animation-delay:
+    calc(var(--i) * 0.07s),
+    calc(var(--i) * 0.12s + 1s);
+}
+
+.ltr-orange {
+  display:inline-block;
+  color:var(--orange);
+  text-shadow:0 0 60px rgba(247,147,26,0.25);
+  opacity:0;
+  animation:
+    ltrIn 0.6s cubic-bezier(.22,1,.36,1) forwards,
+    ltrGlow 3.5s ease-in-out infinite;
+  animation-delay:
+    calc(var(--i) * 0.07s),
+    calc(var(--i) * 0.12s + 1s);
+}
+
+@keyframes ltrIn {
+  from { opacity:0; transform:translateY(110%) skewY(5deg); }
+  to   { opacity:1; transform:translateY(0) skewY(0deg); }
+}
+@keyframes ltrFloat {
+  0%,100% { transform:translateY(0); }
+  50%     { transform:translateY(-4px); }
+}
+@keyframes ltrGlow {
+  0%,100% { color:var(--orange); text-shadow:0 0 20px rgba(247,147,26,0.3); }
+  50%     { color:#ffb84d; text-shadow:0 0 50px rgba(247,147,26,1), 0 0 100px rgba(247,147,26,0.3); }
+}
+
+/* amount input */
+.amount-wrap {
+  position:relative;
+  margin-bottom:28px;
+}
+
+.amount-symbol {
+  position:absolute;
+  left:20px; top:50%;
+  transform:translateY(-50%);
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:32px; font-weight:700;
+  color:var(--orange);
+  pointer-events:none;
+  z-index:2;
+  transition:all .2s;
+}
+
+#amountInput {
+  width:100%;
+  background:var(--s2);
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:var(--radius);
+  color:var(--white);
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:clamp(36px,8vw,56px);
+  font-weight:800;
+  letter-spacing:-1px;
+  padding:20px 20px 20px 60px;
+  outline:none;
+  transition:border-color .2s, box-shadow .2s;
+  -webkit-appearance:none;
+  appearance:none;
+}
+#amountInput:focus {
+  border-color:rgba(247,147,26,.45);
+  box-shadow:0 0 0 3px var(--og2);
+}
+#amountInput::placeholder { color:var(--w3); }
+
+/* ── OUTPUT CARDS ── */
+.output-grid {
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:12px;
+  margin-bottom:4px;
+}
+@media(max-width:520px){ .output-grid{ grid-template-columns:1fr; } }
+
+.out-card {
+  background:var(--s2);
+  border:1px solid var(--rule);
+  border-radius:var(--radius);
+  padding:18px 16px;
+  position:relative; overflow:hidden;
+  transition:border-color .2s;
+}
+
+.out-card.sats  { border-color:rgba(247,147,26,0.25); }
+.out-card.btc   { border-color:rgba(247,147,26,0.12); }
+.out-card.usdv  { border-color:rgba(247,147,26,0.08); }
+
+.out-card::before {
+  content:'';
+  position:absolute; top:0; left:0; right:0; height:2px;
+}
+.out-card.sats::before  { background:linear-gradient(90deg, var(--orange), transparent); }
+.out-card.btc::before   { background:linear-gradient(90deg, rgba(247,147,26,.5), transparent); }
+.out-card.usdv::before  { background:linear-gradient(90deg, rgba(247,147,26,.25), transparent); }
+
+.out-tag {
+  font-family:'JetBrains Mono',monospace;
+  font-size:8px; letter-spacing:3px;
+  color:var(--w2); text-transform:uppercase;
+  margin-bottom:8px;
+}
+
+.out-val {
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:clamp(22px,4vw,28px);
+  font-weight:800; line-height:1;
+  letter-spacing:-0.5px;
+  transition:all .15s;
+}
+
+.out-card.sats  .out-val { color:var(--orange); }
+.out-card.btc   .out-val { color:var(--white); }
+.out-card.usdv  .out-val { color:var(--w2); }
+
+.out-sub {
+  margin-top:5px;
+  font-size:10px; font-weight:300;
+  color:var(--w3);
+  font-family:'JetBrains Mono',monospace;
+}
+
+/* pulse on update */
+@keyframes valPop {
+  0%   { transform:scale(1); }
+  40%  { transform:scale(1.04); }
+  100% { transform:scale(1); }
+}
+.pop { animation:valPop 0.25s ease; }
+
+/* ── QUICK AMOUNTS ── */
+.quick-row {
+  display:flex; gap:8px; flex-wrap:wrap;
+  margin-top:20px;
+}
+.quick-btn {
+  background:var(--s2);
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:var(--radius);
+  color:var(--w2);
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:13px; font-weight:600;
+  letter-spacing:1px; padding:8px 14px;
+  cursor:pointer; text-transform:uppercase;
+  transition:all .15s;
+  touch-action:manipulation;
+}
+.quick-btn:hover {
+  border-color:var(--orange);
+  color:var(--orange);
+  background:var(--og3);
+}
+
+/* ── COPY ROW ── */
+.copy-row {
+  display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;
+}
+.copy-btn {
+  flex:1; min-width:100px;
+  background:transparent;
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:var(--radius);
+  color:var(--w2);
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:13px; font-weight:600;
+  letter-spacing:2px; padding:11px 12px;
+  cursor:pointer; text-transform:uppercase;
+  transition:all .15s; text-align:center;
+  touch-action:manipulation;
+}
+.copy-btn:hover { border-color:var(--orange); color:var(--orange); background:var(--og2); }
+.copy-btn.done  { border-color:var(--green); color:var(--green); background:rgba(45,255,138,0.05); }
+
+/* ── RATE INFO ── */
+.rate-info {
+  margin-top:16px;
+  padding:14px 18px;
+  background:var(--s2);
+  border:1px solid var(--rule);
+  border-radius:var(--radius);
+  display:flex; justify-content:space-between;
+  align-items:center; flex-wrap:wrap; gap:8px;
+  animation:fadeUp 0.5s 0.85s both;
+}
+.rate-label {
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px; letter-spacing:3px;
+  color:var(--w3); text-transform:uppercase;
+}
+.rate-val {
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px; color:var(--orange);
+}
+
+/* ── LINKS BAR ── */
+.links-bar {
+  display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;
+  animation:fadeUp 0.5s 0.9s both;
+}
+.link-pill {
+  flex:1; min-width:100px;
+  background:transparent;
+  border:1px solid var(--rule);
+  border-radius:var(--radius);
+  color:var(--w2);
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:12px; font-weight:600;
+  letter-spacing:2px; padding:10px 12px;
+  text-decoration:none; text-align:center;
+  text-transform:uppercase;
+  transition:all .15s; display:block;
+  touch-action:manipulation;
+}
+.link-pill:hover { border-color:var(--orange); color:var(--orange); background:var(--og3); }
+
+/* ── LIGHTNING TIP ── */
+.tip-jar {
+  margin-top:12px;
+  background:var(--s1);
+  border:1px solid rgba(255,220,50,0.12);
+  border-radius:var(--radius);
+  padding:16px 20px;
+  display:flex; align-items:center;
+  justify-content:space-between;
+  gap:14px; flex-wrap:wrap;
+  animation:fadeUp 0.5s 0.95s both;
+}
+.tip-left { display:flex; align-items:center; gap:12px; }
+.tip-bolt {
+  font-size:20px; line-height:1; flex-shrink:0;
+  animation:zap 2.5s ease-in-out infinite;
+}
+@keyframes zap {
+  0%,100%{filter:drop-shadow(0 0 5px rgba(255,220,50,.5));}
+  50%{filter:drop-shadow(0 0 14px rgba(255,220,50,.9));}
+}
+.tip-text strong {
+  display:block;
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:13px; font-weight:700;
+  letter-spacing:2px; text-transform:uppercase;
+  color:#ffd93d; margin-bottom:1px;
+}
+.tip-text span {
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px; color:var(--w2);
+}
+.tip-addr {
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px; color:#ffd93d;
+  background:rgba(255,217,61,0.06);
+  border:1px solid rgba(255,217,61,0.18);
+  border-radius:var(--radius);
+  padding:8px 14px; cursor:pointer;
+  transition:all .15s; white-space:nowrap;
+  display:flex; align-items:center; gap:6px;
+  touch-action:manipulation;
+}
+.tip-addr:hover { background:rgba(255,217,61,0.12); border-color:rgba(255,217,61,.45); }
+.tip-addr.done  { color:var(--green); border-color:rgba(45,255,138,.35); background:rgba(45,255,138,.05); }
+
+/* ── FOOTER ── */
+.footer {
+  margin-top:48px; padding-top:22px;
+  border-top:1px solid var(--rule);
+  display:flex; justify-content:space-between;
+  align-items:center; flex-wrap:wrap; gap:10px;
+  animation:fadeUp 0.5s 1s both;
+}
+.footer-left {
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px; letter-spacing:2px;
+  color:var(--w3); text-transform:uppercase; line-height:1.8;
+}
+.footer-left a { color:var(--orange); text-decoration:none; transition:opacity .15s; }
+.footer-left a:hover { opacity:.7; }
+.footer-btc {
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:28px; font-weight:900;
+  color:var(--orange); opacity:.25;
+}
+
+/* ── MOBILE ── */
+@media(max-width:520px){
+  .wrap { padding:0 14px 60px; }
+  .header { padding:32px 0 24px; }
+  .converter { padding:20px 14px; }
+
+  /* Input */
+  #amountInput { font-size:32px; padding:14px 14px 14px 48px; }
+  .amount-symbol { font-size:24px; left:14px; }
+
+  /* Currency tabs — 5 per row on mobile */
+  .currency-tabs { flex-wrap:wrap; }
+  .cur-tab { min-width:18%; flex:1 1 18%; font-size:12px; padding:10px 2px; }
+
+  /* Ticker — scrollable row on mobile */
+  .ticker-bar {
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    gap:0;
+    padding:8px 12px;
+    scrollbar-width:none;
+  }
+  .ticker-bar::-webkit-scrollbar { display:none; }
+  .t-pair { flex-shrink:0; padding-right:12px; }
+
+  /* Output grid — stack on mobile */
+  .output-grid { grid-template-columns:1fr; gap:8px; }
+
+  /* Quick amounts — wrap tightly */
+  .quick-row { gap:6px; }
+  .quick-btn { font-size:12px; padding:8px 10px; flex:1 1 28%; }
+
+  /* Copy buttons — stack */
+  .copy-row { flex-direction:column; gap:8px; }
+  .copy-btn { width:100%; padding:14px; font-size:14px; }
+
+  /* Rate info */
+  .rate-info { flex-direction:column; align-items:flex-start; gap:4px; }
+
+  /* Links */
+  .links-bar { flex-direction:column; gap:8px; }
+  .link-pill { width:100%; text-align:center; padding:12px; }
+
+  /* Tip jar */
+  .tip-jar { flex-direction:column; align-items:flex-start; gap:12px; }
+  .tip-addr { width:100%; justify-content:center; padding:12px; }
+
+  /* Footer */
+  .footer { flex-direction:column; align-items:flex-start; gap:6px; }
+  .footer-btc { display:none; }
+
+  /* Prevent iOS zoom on input focus */
+  input[type="number"] { font-size:16px !important; }
+  #amountInput { font-size:32px !important; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="eyebrow">Instant Fiat to Bitcoin Converter</div>
+    <div class="title">
+      <span class="title-sat">
+        <span class="t-inner">
+          <span class="ltr" style="--i:0">S</span><span class="ltr" style="--i:1">A</span><span class="ltr" style="--i:2">T</span>
+        </span>
+      </span>
+      <span class="title-convert">
+        <span class="t-inner">
+          <span class="ltr-orange" style="--i:3">C</span><span class="ltr-orange" style="--i:4">O</span><span class="ltr-orange" style="--i:5">N</span><span class="ltr-orange" style="--i:6">V</span><span class="ltr-orange" style="--i:7">E</span><span class="ltr-orange" style="--i:8">R</span><span class="ltr-orange" style="--i:9">T</span>
+        </span>
+      </span>
+    </div>
+    <div class="header-sub">Everything costs sats. Now you'll know exactly how many.</div>
+    <div class="header-rule"></div>
+
+    <!-- Ticker -->
+    <div class="ticker-bar" id="tickerBar">
+      <div class="t-dot"></div>
+      <div class="t-pair"><span class="t-label">BTC</span><span class="t-val" id="t-usd">—</span></div>
+      <div class="t-pair"><span class="t-label">EUR</span><span class="t-val" id="t-eur">—</span></div>
+      <div class="t-pair"><span class="t-label">JPY</span><span class="t-val" id="t-jpy">—</span></div>
+      <div class="t-pair"><span class="t-label">GBP</span><span class="t-val" id="t-gbp">—</span></div>
+      <div class="t-pair"><span class="t-label">CNY</span><span class="t-val" id="t-cny">—</span></div>
+      <div class="t-pair"><span class="t-label">AUD</span><span class="t-val" id="t-aud">—</span></div>
+      <div class="t-pair"><span class="t-label">CAD</span><span class="t-val" id="t-cad">—</span></div>
+      <div class="t-pair"><span class="t-label">CHF</span><span class="t-val" id="t-chf">—</span></div>
+      <div class="t-pair"><span class="t-label">HKD</span><span class="t-val" id="t-hkd">—</span></div>
+      <div class="t-pair"><span class="t-label">NGN</span><span class="t-val" id="t-ngn">—</span></div>
+      <span class="t-src" id="t-src"></span>
+    </div>
+  </header>
+
+  <!-- CONVERTER -->
+  <div class="converter">
+    <div class="card-label">// Convert</div>
+
+    <!-- Currency tabs -->
+    <div class="currency-tabs">
+      <button class="cur-tab active" data-cur="USD" data-sym="$"  data-name="US Dollar">USD</button>
+      <button class="cur-tab" data-cur="EUR" data-sym="€"         data-name="Euro">EUR</button>
+      <button class="cur-tab" data-cur="JPY" data-sym="¥"         data-name="Japanese Yen">JPY</button>
+      <button class="cur-tab" data-cur="GBP" data-sym="£"         data-name="British Pound">GBP</button>
+      <button class="cur-tab" data-cur="CNY" data-sym="CN¥"        data-name="Chinese Yuan">CNY</button>
+      <button class="cur-tab" data-cur="AUD" data-sym="$"         data-name="Australian Dollar">AUD</button>
+      <button class="cur-tab" data-cur="CAD" data-sym="$"         data-name="Canadian Dollar">CAD</button>
+      <button class="cur-tab" data-cur="CHF" data-sym="₣"         data-name="Swiss Franc">CHF</button>
+      <button class="cur-tab" data-cur="HKD" data-sym="$"         data-name="Hong Kong Dollar">HKD</button>
+      <button class="cur-tab" data-cur="NGN" data-sym="₦"         data-name="Nigerian Naira">NGN</button>
+    </div>
+
+    <!-- Amount input -->
+    <div class="amount-wrap">
+      <span class="amount-symbol" id="curSym">$</span>
+      <input type="number" id="amountInput" placeholder="0" min="0" step="any" inputmode="decimal" autocomplete="off">
+    </div>
+
+    <!-- Output cards -->
+    <div class="output-grid">
+      <div class="out-card sats">
+        <div class="out-tag">Satoshis</div>
+        <div class="out-val" id="out-sats">—</div>
+        <div class="out-sub" id="out-sats-sub">enter an amount</div>
+      </div>
+      <div class="out-card btc">
+        <div class="out-tag">Bitcoin</div>
+        <div class="out-val" id="out-btc">—</div>
+        <div class="out-sub" id="out-btc-sub">₿</div>
+      </div>
+      <div class="out-card usdv">
+        <div class="out-tag">USD Value</div>
+        <div class="out-val" id="out-usd">—</div>
+        <div class="out-sub" id="out-usd-sub">at current rate</div>
+      </div>
+    </div>
+
+    <!-- Quick amounts -->
+    <div class="quick-row" id="quickRow">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--w3);text-transform:uppercase;align-self:center;">Quick:</span>
+    </div>
+
+    <!-- Copy buttons -->
+    <div class="copy-row">
+      <button class="copy-btn" id="copySats">Copy Sats</button>
+      <button class="copy-btn" id="copyBtc">Copy BTC</button>
+      <button class="copy-btn" id="copyAll">Copy All</button>
+    </div>
+  </div>
+
+  <!-- Rate info -->
+  <div class="rate-info">
+    <span class="rate-label">1 BTC =</span>
+    <span class="rate-val" id="rateDisplay">Loading rates...</span>
+    <span class="rate-label" id="rateUpdated"></span>
+  </div>
+
+  <!-- Links -->
+  <div class="links-bar">
+    <a href="https://satchek.com" class="link-pill">⚡ SatChek</a>
+    <a href="https://stackfreedom.io" class="link-pill">🟠 StackFreedom</a>
+  </div>
+
+  <!-- Lightning tip -->
+  <div class="tip-jar">
+    <div class="tip-left">
+      <div class="tip-bolt">⚡</div>
+      <div class="tip-text">
+        <strong>Send a Lightning Tip</strong>
+        <span>If this saved you sats, zap me back</span>
+      </div>
+    </div>
+    <button class="tip-addr" id="tipBtn">
+      <span>⚡</span>
+      <span id="tipTxt">onlysat@strike.me</span>
+    </button>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-left">
+      Built by <a href="https://x.com/aastack" target="_blank">@aastack</a><br>
+      Not financial advice · Stack sats
+    </div>
+    <div class="footer-btc">₿</div>
+  </footer>
+
+</div><!-- /wrap -->
+
+<script>
+// ── STATE ──
+let rates = {}; // { USD: btcPriceInUSD, EUR: btcPriceInEUR, ... }
+let activeCur = 'USD';
+let btcInUSD = 0;
+
+const SYMBOLS = { USD:'$', EUR:'€', JPY:'¥', GBP:'£', CNY:'CN¥', AUD:'$', CAD:'$', CHF:'₣', HKD:'$', NGN:'₦' };
+const QUICK = {
+  USD: [1, 5, 10, 50, 100, 500],
+  EUR: [1, 5, 10, 50, 100, 500],
+  JPY: [100, 500, 1000, 5000, 10000, 50000],
+  GBP: [1, 5, 10, 50, 100, 500],
+  CNY: [10, 50, 100, 500, 1000, 5000],
+  AUD: [1, 5, 10, 50, 100, 500],
+  CAD: [1, 5, 10, 50, 100, 500],
+  CHF: [1, 5, 10, 50, 100, 500],
+  HKD: [10, 50, 100, 500, 1000, 5000],
+  NGN: [500, 1000, 5000, 10000, 50000, 100000],
+};
+
+// ── FETCH RATES ──
+async function fetchRates() {
+  try {
+    // CoinGecko free API — BTC price in all currencies
+    const res = await fetch(
+      'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd,eur,jpy,gbp,cny,aud,cad,chf,hkd,ngn'
+    );
+    const data = await res.json();
+    const b = data.bitcoin;
+    rates = {
+      USD: b.usd, EUR: b.eur, JPY: b.jpy, GBP: b.gbp,
+      CNY: b.cny, AUD: b.aud, CAD: b.cad, CHF: b.chf,
+      HKD: b.hkd, NGN: b.ngn
+    };
+    btcInUSD = b.usd;
+    updateTicker('coingecko');
+    convert();
+    return;
+  } catch {}
+
+  // Fallback: CoinDesk for USD, manual cross rates
+  try {
+    const res = await fetch('https://api.coindesk.com/v1/bpi/currentprice/USD.json');
+    const data = await res.json();
+    const usd = data.bpi.USD.rate_float;
+    btcInUSD = usd;
+    // Approximate cross rates (will update on next fetch)
+    rates = {
+      USD: usd,
+      EUR: usd * 0.92,
+      JPY: usd * 149.5,
+      GBP: usd * 0.79,
+      CNY: usd * 7.24,
+      AUD: usd * 1.53,
+      CAD: usd * 1.36,
+      CHF: usd * 0.90,
+      HKD: usd * 7.82,
+      NGN: usd * 1580,
+    };
+    updateTicker('coindesk');
+    convert();
+    return;
+  } catch {}
+
+  // Last resort mempool
+  try {
+    const res = await fetch('https://mempool.space/api/v1/prices');
+    const data = await res.json();
+    btcInUSD = data.USD;
+    rates = {
+      USD: data.USD,
+      EUR: data.USD * 0.92,
+      JPY: data.USD * 149.5,
+      GBP: data.USD * 0.79,
+      CNY: data.USD * 7.24,
+      AUD: data.USD * 1.53,
+      CAD: data.USD * 1.36,
+      CHF: data.USD * 0.90,
+      HKD: data.USD * 7.82,
+      NGN: data.USD * 1580,
+    };
+    updateTicker('mempool');
+    convert();
+  } catch {
+    document.getElementById('t-src').textContent = 'offline';
+  }
+}
+
+function updateTicker(src) {
+  const fmt = (n, dec=0) => n >= 1000
+    ? '$' + (n/1000).toFixed(1) + 'K'
+    : n.toFixed(dec);
+
+  document.getElementById('t-usd').textContent = '$' + rates.USD.toLocaleString('en-US', {maximumFractionDigits:0});
+  document.getElementById('t-eur').textContent = '€' + rates.EUR.toLocaleString('en-US', {maximumFractionDigits:0});
+  document.getElementById('t-jpy').textContent = '¥' + rates.JPY.toLocaleString('en-US', {maximumFractionDigits:0});
+  document.getElementById('t-gbp').textContent = '£' + rates.GBP.toLocaleString('en-US', {maximumFractionDigits:0});
+  document.getElementById('t-cny').textContent = 'CN¥' + rates.CNY.toLocaleString('en-US', {maximumFractionDigits:0});
+  document.getElementById('t-aud').textContent = '$' + rates.AUD.toLocaleString('en-US', {maximumFractionDigits:0});
+  document.getElementById('t-cad').textContent = '$' + rates.CAD.toLocaleString('en-US', {maximumFractionDigits:0});
+  document.getElementById('t-chf').textContent = '₣' + rates.CHF.toLocaleString('en-US', {maximumFractionDigits:0});
+  document.getElementById('t-hkd').textContent = '$' + rates.HKD.toLocaleString('en-US', {maximumFractionDigits:0});
+  document.getElementById('t-ngn').textContent = '₦' + rates.NGN.toLocaleString('en-US', {maximumFractionDigits:0});
+  document.getElementById('t-src').textContent = '· ' + src;
+
+  document.getElementById('rateDisplay').textContent =
+    `$${rates.USD.toLocaleString('en-US', {maximumFractionDigits:0})} USD`;
+  document.getElementById('rateUpdated').textContent =
+    'updated ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+}
+
+// ── CURRENCY TABS ──
+document.querySelectorAll('.cur-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.cur-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeCur = btn.dataset.cur;
+    document.getElementById('curSym').textContent = btn.dataset.sym;
+    buildQuickBtns();
+    convert();
+  });
+});
+
+// ── CURRENCY TOOLTIPS ──
+const tooltip = document.createElement('div');
+tooltip.className = 'cur-tooltip';
+tooltip.style.position = 'fixed';
+tooltip.style.top = '-999px';
+tooltip.style.left = '-999px';
+document.body.appendChild(tooltip);
+
+document.querySelectorAll('.cur-tab').forEach(btn => {
+  btn.addEventListener('mouseenter', () => {
+    const name = btn.dataset.name;
+    if (!name) return;
+    tooltip.textContent = name;
+    tooltip.style.opacity = '1';
+    // Use rAF so tooltip has dimensions before positioning
+    requestAnimationFrame(() => {
+      const rect = btn.getBoundingClientRect();
+      const tw = tooltip.offsetWidth;
+      const th = tooltip.offsetHeight;
+      tooltip.style.left = Math.round(rect.left + rect.width / 2 - tw / 2) + 'px';
+      tooltip.style.top  = Math.round(rect.top - th - 8) + 'px';
+    });
+  });
+  btn.addEventListener('mouseleave', () => {
+    tooltip.style.opacity = '0';
+  });
+});
+
+// ── QUICK AMOUNTS ──
+function buildQuickBtns() {
+  const row = document.getElementById('quickRow');
+  // Remove old buttons
+  row.querySelectorAll('.quick-btn').forEach(b => b.remove());
+  const amounts = QUICK[activeCur] || QUICK.USD;
+  const sym = SYMBOLS[activeCur];
+  amounts.forEach(amt => {
+    const b = document.createElement('button');
+    b.className = 'quick-btn';
+    b.textContent = sym + amt.toLocaleString();
+    b.addEventListener('click', () => {
+      document.getElementById('amountInput').value = amt;
+      convert();
+    });
+    row.appendChild(b);
+  });
+}
+buildQuickBtns();
+
+// ── CONVERT ──
+function convert() {
+  const raw = parseFloat(document.getElementById('amountInput').value);
+  const btcRate = rates[activeCur];
+
+  if (!btcRate || isNaN(raw) || raw <= 0) {
+    document.getElementById('out-sats').textContent = '—';
+    document.getElementById('out-btc').textContent = '—';
+    document.getElementById('out-usd').textContent = '—';
+    document.getElementById('out-sats-sub').textContent = 'enter an amount';
+    document.getElementById('out-btc-sub').textContent = '₿';
+    document.getElementById('out-usd-sub').textContent = 'at current rate';
+    return;
+  }
+
+  const btc  = raw / btcRate;
+  const sats = btc * 1e8;
+  const usdVal = btc * (rates.USD || btcRate);
+
+  // Format sats
+  let satsDisplay, satsSub;
+  if (sats >= 1e8) {
+    satsDisplay = btc.toFixed(4) + ' BTC';
+    satsSub = sats.toLocaleString('en-US', {maximumFractionDigits:0}) + ' sats';
+  } else if (sats >= 1e6) {
+    satsDisplay = (sats/1e6).toFixed(3) + 'M';
+    satsSub = Math.round(sats).toLocaleString() + ' sats';
+  } else if (sats >= 1e3) {
+    satsDisplay = (sats/1e3).toFixed(2) + 'K';
+    satsSub = Math.round(sats).toLocaleString() + ' sats';
+  } else {
+    satsDisplay = Math.round(sats).toLocaleString();
+    satsSub = 'satoshis';
+  }
+
+  // Format BTC
+  let btcDisplay;
+  if (btc >= 1)       btcDisplay = btc.toFixed(4);
+  else if (btc >= .01) btcDisplay = btc.toFixed(6);
+  else                 btcDisplay = btc.toFixed(8);
+
+  // Format USD
+  let usdDisplay;
+  if (activeCur === 'USD') {
+    usdDisplay = '$' + raw.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+  } else {
+    usdDisplay = '$' + usdVal.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+  }
+
+  setVal('out-sats', satsDisplay);
+  setVal('out-btc', btcDisplay);
+  setVal('out-usd', usdDisplay);
+  document.getElementById('out-sats-sub').textContent = satsSub !== 'satoshis' ? satsSub : 'satoshis';
+  document.getElementById('out-btc-sub').textContent = '₿ bitcoin';
+  document.getElementById('out-usd-sub').textContent = activeCur !== 'USD' ? '≈ USD equivalent' : 'at current rate';
+}
+
+function setVal(id, val) {
+  const el = document.getElementById(id);
+  if (el.textContent !== val) {
+    el.textContent = val;
+    el.classList.remove('pop');
+    void el.offsetWidth;
+    el.classList.add('pop');
+  }
+}
+
+document.getElementById('amountInput').addEventListener('input', convert);
+
+// ── COPY BUTTONS ──
+function copyText(text, btnId) {
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById(btnId);
+    const orig = btn.textContent;
+    btn.classList.add('done');
+    btn.textContent = '✓ Copied';
+    setTimeout(() => { btn.classList.remove('done'); btn.textContent = orig; }, 2000);
+  });
+}
+
+document.getElementById('copySats').addEventListener('click', () => {
+  const v = document.getElementById('out-sats').textContent;
+  if (v !== '—') copyText(v + ' sats', 'copySats');
+});
+
+document.getElementById('copyBtc').addEventListener('click', () => {
+  const v = document.getElementById('out-btc').textContent;
+  if (v !== '—') copyText(v + ' BTC', 'copyBtc');
+});
+
+document.getElementById('copyAll').addEventListener('click', () => {
+  const amt = document.getElementById('amountInput').value;
+  const sym = SYMBOLS[activeCur];
+  const s = document.getElementById('out-sats').textContent;
+  const b = document.getElementById('out-btc').textContent;
+  const u = document.getElementById('out-usd').textContent;
+  if (s === '—') return;
+  const text = `${sym}${amt} ${activeCur} = ${s} sats | ${b} BTC | ${u} USD\nsatconvert.vercel.app · @aastack`;
+  copyText(text, 'copyAll');
+});
+
+// ── LIGHTNING TIP ──
+document.getElementById('tipBtn').addEventListener('click', () => {
+  navigator.clipboard.writeText('onlysat@strike.me').then(() => {
+    const btn = document.getElementById('tipBtn');
+    const txt = document.getElementById('tipTxt');
+    btn.classList.add('done');
+    txt.textContent = '✓ Copied!';
+    setTimeout(() => { btn.classList.remove('done'); txt.textContent = 'onlysat@strike.me'; }, 2500);
+  });
+});
+
+// ── INIT ──
+fetchRates();
+// Refresh rates every 60s
+setInterval(fetchRates, 60000);
+</script>
+</body>
+</html>
