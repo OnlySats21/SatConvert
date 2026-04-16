@@ -90,11 +90,14 @@ body::after {
 .title-sat,
 .title-convert {
   display:block;
-  overflow:hidden;
 }
 
-.title-sat .t-inner { display:block; }
-.title-convert .t-inner { display:block; }
+.title-convert .t-inner {
+  display:flex;
+  align-items:baseline;
+  gap:6px;
+  overflow:visible;
+}
 
 @keyframes slideUp {
   from { transform:translateY(110%); opacity:0; }
@@ -119,7 +122,40 @@ body::after {
   animation:fadeUp 0.5s 0.55s both;
 }
 
-/* ── TICKER BAR ── */
+/* ── SLOT MACHINE ── */
+.slot-wrap {
+  display:inline-block;
+  vertical-align:baseline;
+  overflow:hidden;
+  height:1em;
+  line-height:1;
+  min-width:60px;
+}
+
+.slot-reel {
+  display:flex;
+  flex-direction:column;
+  transition:transform 0.12s cubic-bezier(.4,0,.2,1);
+}
+
+.slot-item {
+  display:block;
+  height:1em;
+  line-height:1;
+  color:var(--orange);
+  text-shadow:0 0 30px rgba(247,147,26,0.6);
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:900;
+  font-size:inherit;
+  letter-spacing:-2px;
+  white-space:nowrap;
+}
+
+.slot-item.btc-final {
+  color:#f7931a;
+  text-shadow:0 0 40px rgba(247,147,26,1), 0 0 80px rgba(247,147,26,0.4);
+}
+
 .ticker-bar {
   display:flex; align-items:center; gap:8px;
   margin-top:20px; padding:8px 16px;
@@ -623,7 +659,7 @@ body::after {
       </span>
       <span class="title-convert">
         <span class="t-inner">
-          <span class="ltr-orange" style="--i:3">C</span><span class="ltr-orange" style="--i:4">O</span><span class="ltr-orange" style="--i:5">N</span><span class="ltr-orange" style="--i:6">V</span><span class="ltr-orange" style="--i:7">E</span><span class="ltr-orange" style="--i:8">R</span><span class="ltr-orange" style="--i:9">T</span>
+          <span><span class="ltr-orange" style="--i:3">C</span><span class="ltr-orange" style="--i:4">O</span><span class="ltr-orange" style="--i:5">N</span><span class="ltr-orange" style="--i:6">V</span><span class="ltr-orange" style="--i:7">E</span><span class="ltr-orange" style="--i:8">R</span><span class="ltr-orange" style="--i:9">T</span></span><span class="slot-wrap"><span class="slot-reel" id="slotReel"></span></span>
         </span>
       </span>
     </div>
@@ -1024,6 +1060,83 @@ document.getElementById('tipBtn').addEventListener('click', () => {
     setTimeout(() => { btn.classList.remove('done'); txt.textContent = 'onlysat@strike.me'; }, 2500);
   });
 });
+
+// ── SLOT MACHINE TITLE ──
+(function() {
+  const symbols = ['$','€','¥','£','₣','₦','₿'];
+  const labels  = ['USD','EUR','JPY','GBP','CNY','AUD','CAD','CHF','HKD','NGN','₿'];
+  const reel    = document.getElementById('slotReel');
+  const wrap    = reel.parentElement;
+
+  // Build reel items
+  symbols.forEach((sym, i) => {
+    const span = document.createElement('span');
+    span.className = 'slot-item' + (i === symbols.length - 1 ? ' btc-final' : '');
+    span.textContent = sym;
+    reel.appendChild(span);
+  });
+
+  // Set wrap width to widest item
+  requestAnimationFrame(() => {
+    let max = 0;
+    reel.querySelectorAll('.slot-item').forEach(el => {
+      if (el.offsetWidth > max) max = el.offsetWidth;
+    });
+    wrap.style.width = max + 'px';
+  });
+
+  let current = 0;
+  const itemH = () => reel.querySelector('.slot-item').offsetHeight || 90;
+
+  function spinTo(index, fast) {
+    reel.style.transition = fast
+      ? 'transform 0.08s cubic-bezier(.4,0,.2,1)'
+      : 'transform 0.18s cubic-bezier(.4,0,.2,1)';
+    reel.style.transform = `translateY(-${index * itemH()}px)`;
+    current = index;
+  }
+
+  // Start after letters animate in
+  setTimeout(() => {
+    let idx = 0;
+    // Fast spin through currencies
+    const fastSpin = setInterval(() => {
+      idx++;
+      spinTo(idx, true);
+      if (idx >= symbols.length - 2) {
+        clearInterval(fastSpin);
+        // Slow down and land on ₿
+        setTimeout(() => {
+          spinTo(symbols.length - 1, false);
+          // After landing, pulse ₿ then restart cycle every 6s
+          setTimeout(startCycle, 3000);
+        }, 120);
+      }
+    }, 80);
+  }, 1200);
+
+  function startCycle() {
+    // Snap back to top instantly (no transition)
+    reel.style.transition = 'none';
+    reel.style.transform = 'translateY(0)';
+    current = 0;
+
+    setTimeout(() => {
+      let idx = 0;
+      const spin = setInterval(() => {
+        idx++;
+        spinTo(idx, true);
+        if (idx >= symbols.length - 2) {
+          clearInterval(spin);
+          setTimeout(() => {
+            spinTo(symbols.length - 1, false);
+            setTimeout(startCycle, 6000);
+          }, 120);
+        }
+      }, 90);
+    }, 50);
+  }
+})();
 
 // ── INIT ──
 fetchRates();
